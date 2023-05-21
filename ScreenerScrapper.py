@@ -197,8 +197,6 @@ myJSON = json.dumps(alldata,sort_keys=True,
     indent=4,
     separators=(',', ': '))
 
-# print(myJSON)
-
 host = 'localhost'
 port = 27017
 db_name = 'stock-market'
@@ -207,8 +205,7 @@ table_name = 'securities'
 client = MongoClient(host, port)
 mydatabase = client[db_name]
 mycollection = mydatabase[table_name]
-# inserting the data in the database
-# mycollection.replace_one({"_id": key},{ '$set': alldata}, upsert=True)
+
 
 mycollection.update_one({"_id": key}, {'$set': alldata}, upsert=True)
-# mycollection.insert_one(alldata)
+
