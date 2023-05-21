@@ -19,7 +19,7 @@ def getWebsiteBseNseCodes(soup):
   return basic_dict
 
 def removeunwantedCharsInNumber(str):
-    return removeunwantedChars(str).replace(',', '')
+    return removeunwantedChars(str).replace(',', '').replace('%', '')
 
 def removeunwantedChars(str):
     return str.strip().replace('\n', '').replace(' ', '').replace('\xa0', '').replace('+','')
@@ -82,7 +82,10 @@ def getHeaders(section_children,style):
     quarter_heads= quarter_all.find_all("th", style)
     quarters = []
     for quarter_head in quarter_heads:
-        quarter_format = removeunwantedChars(quarter_head.text)
+        quarter_head_text = quarter_head.text;
+        if quarter_head_text == "":
+            continue
+        quarter_format = removeunwantedChars(quarter_head_text)
         quarters.append(quarter_format)
     return quarters
 
@@ -142,13 +145,14 @@ def getGeneralData(body, period_frequency):
             if button:
                 value = removeunwantedChars(button.text)
             else:
-                value = removeunwantedChars(element.text)
+                value = removeunwantedCharsInNumber(element.text)
             if index==0:
                 key= value;
                 index = index+1
                 continue
             if(key=="RawPDF"):
                 continue
+            value = float(value)
             dict[period[index-1]] = value
             index = index+1
         if(key!="RawPDF"):
@@ -188,7 +192,8 @@ shareholders_pattern = getShareHoldingPattern(soup)
 
 alldata ={}
 alldata["securityDescription"] = securityDescription
-key = website_bse_nse_codes['nsecode'] + website_bse_nse_codes['bsecode']
+
+key = website_bse_nse_codes['nsecode'] + ":"+website_bse_nse_codes['bsecode']
 alldata["_id"]=key
 alldata = {**alldata, **website_bse_nse_codes, **sectorAndIndustry, **quarterly_results,**profit_loss_dict,**balance_sheet,**cashflows,**ratios,**shareholders_pattern}
 
@@ -208,4 +213,3 @@ mycollection = mydatabase[table_name]
 
 
 mycollection.update_one({"_id": key}, {'$set': alldata}, upsert=True)
-
