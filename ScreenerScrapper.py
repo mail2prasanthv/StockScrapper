@@ -150,7 +150,7 @@ def getGeneralData(body, period_frequency):
                 key= value;
                 index = index+1
                 continue
-            if(key=="RawPDF"):
+            if(key=="RawPDF") or value=='':
                 continue
             value = float(value)
             dict[period[index-1]] = value
@@ -160,56 +160,66 @@ def getGeneralData(body, period_frequency):
 
     return superdict
 
+def insertIntoMongoDB(alldata, key):
+    host = 'localhost'
+    port = 27017
+    db_name = 'stock-market'
+    table_name = 'securities'
 
-urlprefix ="https://www.screener.in/company/"
-companyticker = 'RELIANCE'
-urlPostfix ='/consolidated/'
-URL = urlprefix+companyticker+urlPostfix
+    client = MongoClient(host, port)
+    mydatabase = client[db_name]
+    mycollection = mydatabase[table_name]
 
-r = requests.get(URL)  
-soup = BeautifulSoup(r.content, 'html5lib') 
-
-securityDescription = getSecurityDescription(soup)
-
-website_bse_nse_codes = getWebsiteBseNseCodes(soup)
-
-basic_info_dict = getbasicInfo(soup)
-
-sectorAndIndustry =  getSectorAndIndustry(soup)
-
-quarterly_results = getQuarterlyResults(soup)
-
-profit_loss_dict = getProfitAndLoss(soup)
-
-balance_sheet = getBalanceSheet(soup)
-
-cashflows = getCashFlows(soup)
-
-ratios = getRatios(soup)
-
-shareholders_pattern = getShareHoldingPattern(soup)
+    mycollection.update_one({"_id": key}, {'$set': alldata}, upsert=True)
 
 
-alldata ={}
-alldata["securityDescription"] = securityDescription
 
-key = website_bse_nse_codes['nsecode'] + ":"+website_bse_nse_codes['bsecode']
-alldata["_id"]=key
-alldata = {**alldata, **website_bse_nse_codes, **sectorAndIndustry, **quarterly_results,**profit_loss_dict,**balance_sheet,**cashflows,**ratios,**shareholders_pattern}
+
+def startScrap(companyticker):
+    urlprefix ="https://www.screener.in/company/"
+    urlPostfix ='/consolidated/'
+    URL = urlprefix+companyticker+urlPostfix
+
+    headers = {
+    "User-Agent": 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/113.0.0.0 Safari/537.36'}
+    
+    r = requests.get(URL, headers=headers)  
+    soup = BeautifulSoup(r.content, 'html5lib') 
+
+    securityDescription = getSecurityDescription(soup)
+
+    website_bse_nse_codes = getWebsiteBseNseCodes(soup)
+
+    basic_info_dict = getbasicInfo(soup)
+
+    sectorAndIndustry =  getSectorAndIndustry(soup)
+
+    quarterly_results = getQuarterlyResults(soup)
+
+    profit_loss_dict = getProfitAndLoss(soup)
+
+    balance_sheet = getBalanceSheet(soup)
+
+    cashflows = getCashFlows(soup)
+
+    ratios = getRatios(soup)
+
+    shareholders_pattern = getShareHoldingPattern(soup)
+
+    alldata ={}
+    alldata["securityDescription"] = securityDescription
+
+    key = website_bse_nse_codes['nsecode'] + ":"+website_bse_nse_codes['bsecode']
+    alldata["_id"]=key
+    alldata = {**alldata, **website_bse_nse_codes, **sectorAndIndustry, **quarterly_results,**profit_loss_dict,**balance_sheet,**cashflows,**ratios,**shareholders_pattern}
 
 # Converting to JSON format
-myJSON = json.dumps(alldata,sort_keys=True,
+    myJSON = json.dumps(alldata,sort_keys=True,
     indent=4,
     separators=(',', ': '))
 
-host = 'localhost'
-port = 27017
-db_name = 'stock-market'
-table_name = 'securities'
-
-client = MongoClient(host, port)
-mydatabase = client[db_name]
-mycollection = mydatabase[table_name]
+    insertIntoMongoDB(alldata, key)
 
 
-mycollection.update_one({"_id": key}, {'$set': alldata}, upsert=True)
+companyticker = 'IRCTC'
+startScrap(companyticker)
