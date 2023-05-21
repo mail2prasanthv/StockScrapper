@@ -2,10 +2,13 @@ import requests
 from bs4 import BeautifulSoup
 from bs4 import Tag
 import string
+import json
+from pymongo import MongoClient
+
 
 def getWebsiteBseNseCodes(soup):
   div = getClassData(soup, "company-links")
-  children = div.findChildren("span" , recursive=True)
+  children = div.find_all("span" , recursive=True)
   website = removeunwantedChars(children[0].text)
   bsecode = removeunwantedChars(children[1].text).replace('BSE:', '')
   nsecode = removeunwantedChars(children[2].text).replace('NSE:', '')
@@ -155,7 +158,7 @@ def getGeneralData(body, period_frequency):
 
 
 urlprefix ="https://www.screener.in/company/"
-companyticker = 'AFFLE'
+companyticker = 'RELIANCE'
 urlPostfix ='/consolidated/'
 URL = urlprefix+companyticker+urlPostfix
 
@@ -164,25 +167,48 @@ soup = BeautifulSoup(r.content, 'html5lib')
 
 securityDescription = getSecurityDescription(soup)
 
-basic_dict1 = getWebsiteBseNseCodes(soup)
-basic_dict2 = getbasicInfo(soup)
+website_bse_nse_codes = getWebsiteBseNseCodes(soup)
+
+basic_info_dict = getbasicInfo(soup)
 
 sectorAndIndustry =  getSectorAndIndustry(soup)
 
-print("-------------QuarterlyResults-------------")
-print(getQuarterlyResults(soup))
+quarterly_results = getQuarterlyResults(soup)
 
-print("-------------ProfitAndLoss-------------")
-print(getProfitAndLoss(soup))
+profit_loss_dict = getProfitAndLoss(soup)
 
-print("-------------BalanceSheetNew-------------")
-print(getBalanceSheet(soup))
+balance_sheet = getBalanceSheet(soup)
 
-print("-------------CashFlows-------------")
-print(getCashFlows(soup))
+cashflows = getCashFlows(soup)
 
-print("-------------Ratios-------------")
-print(getRatios(soup))
+ratios = getRatios(soup)
 
-print("-------------ShareHoldingPattern-------------")
-print(getShareHoldingPattern(soup))
+shareholders_pattern = getShareHoldingPattern(soup)
+
+
+alldata ={}
+alldata["securityDescription"] = securityDescription
+key = website_bse_nse_codes['nsecode'] + website_bse_nse_codes['bsecode']
+alldata["_id"]=key
+alldata = {**alldata, **website_bse_nse_codes, **sectorAndIndustry, **quarterly_results,**profit_loss_dict,**balance_sheet,**cashflows,**ratios,**shareholders_pattern}
+
+# Converting to JSON format
+myJSON = json.dumps(alldata,sort_keys=True,
+    indent=4,
+    separators=(',', ': '))
+
+# print(myJSON)
+
+host = 'localhost'
+port = 27017
+db_name = 'stock-market'
+table_name = 'securities'
+
+client = MongoClient(host, port)
+mydatabase = client[db_name]
+mycollection = mydatabase[table_name]
+# inserting the data in the database
+# mycollection.replace_one({"_id": key},{ '$set': alldata}, upsert=True)
+
+mycollection.update_one({"_id": key}, {'$set': alldata}, upsert=True)
+# mycollection.insert_one(alldata)
