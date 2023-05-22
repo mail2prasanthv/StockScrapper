@@ -16,7 +16,8 @@ companyInfo = getCompanies();
 index =1;
 errorindex=1;
 for key in companyInfo:
-    while True:
+    retryCount=1;
+    while retryCount<4:
         try:
             # if index<100:
             startScrap(key)
@@ -25,8 +26,11 @@ for key in companyInfo:
             print("Error while processing Retrying:", key, e)
             time.sleep(10)
             errorindex =0;
+            retryCount = retryCount +1
             continue 
         break
+    if retryCount>=4:
+        print("Retry Failed for ", key, " index:", index)
     index = index +1 
     errorindex = errorindex +1
     if(errorindex%40==0):
