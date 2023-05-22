@@ -13,4 +13,5 @@ def getCompanies():
 
     return companyInfo
 
-getCompanies()
+if __name__ == "__main__":
+    getCompanies()

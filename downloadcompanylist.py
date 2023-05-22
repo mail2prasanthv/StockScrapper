@@ -10,6 +10,7 @@ def downloadNseSecurityListFile():
     companylist_xlsx.write(response.content)
     companylist_xlsx.close()
 
-downloadNseSecurityListFile()
+if __name__ == "__main__":
+    downloadNseSecurityListFile()
 
 

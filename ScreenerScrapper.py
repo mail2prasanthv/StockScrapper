@@ -220,6 +220,6 @@ def startScrap(companyticker):
 
     insertIntoMongoDB(alldata, key)
 
-
-companyticker = 'IRCTC'
-startScrap(companyticker)
+if __name__ == "__main__":
+    companyticker = 'IRCTC'
+    startScrap(companyticker)
