@@ -204,7 +204,11 @@ def startScrap(companyticker):
 
     ratios = getRatios(soup)
 
-    shareholders_pattern = getShareHoldingPattern(soup)
+    shareholders_pattern ={}
+    try:
+        shareholders_pattern = getShareHoldingPattern(soup)
+    except:
+        print("Error while processing Shareholders pattern. seems share holdern pattern missing. security:" ,companyticker )
 
     alldata ={}
     alldata["securityDescription"] = securityDescription
@@ -213,13 +217,9 @@ def startScrap(companyticker):
     alldata["_id"]=key
     alldata = {**alldata, **website_bse_nse_codes, **sectorAndIndustry, **quarterly_results,**profit_loss_dict,**balance_sheet,**cashflows,**ratios,**shareholders_pattern}
 
-# Converting to JSON format
-    myJSON = json.dumps(alldata,sort_keys=True,
-    indent=4,
-    separators=(',', ': '))
 
     insertIntoMongoDB(alldata, key)
 
 if __name__ == "__main__":
-    companyticker = 'IRCTC'
+    companyticker = 'FACT'
     startScrap(companyticker)
