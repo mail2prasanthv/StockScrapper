@@ -14,15 +14,22 @@ def getWebsiteBseNseCodes(soup):
   nsecode = removeunwantedChars(children[2].text).replace('NSE:', '')
   basic_dict = {}
   basic_dict['website'] = website
-  basic_dict['bsecode'] = bsecode
-  basic_dict['nsecode'] = nsecode
+  basic_dict['bseCode'] = bsecode
+  basic_dict['nseCode'] = nsecode
   return basic_dict
+
+def isfloat(num):
+    try:
+        float(num)
+        return True
+    except ValueError:
+        return False
 
 def removeunwantedCharsInNumber(str):
     return removeunwantedChars(str).replace(',', '').replace('%', '')
 
 def removeunwantedChars(str):
-    return str.strip().replace('\n', '').replace(' ', '').replace('\xa0', '').replace('+','')
+    return str.strip().replace('\n', '').replace(' ', '').replace('\xa0', '').replace('+','').replace('/','')
 
 def convertToQuarter(str):
     return removeunwantedChars(str).replace('Mar', 'Q1-').replace('Jun', 'Q2-').replace('Sep', 'Q3-').replace('Dec', 'Q4-')
@@ -30,6 +37,15 @@ def convertToQuarter(str):
 def convertToYear(str):
     return removeunwantedChars(str).replace('Mar', 'Year-')
 
+def camelCase(st):
+    output = ''.join(x for x in st.title() if x.isalnum())
+    return output[0].lower() + output[1:]
+
+def convert_first_letter_to_lowercase(s):
+    return ''.join([s[0].lower(), s[1:]])
+
+    converted_sentence = "".join([word[0].lower() + word[1:] for word in words])
+    return converted_sentence
 
 def getTimePerioddata(years, cashflow_operating_activity):
     cashflow_operating_activity_tds = cashflow_operating_activity.find_all("td", {"class": ""})
@@ -42,16 +58,20 @@ def getTimePerioddata(years, cashflow_operating_activity):
     return dict
 
 def getbasicInfo(soup):
-   companyratio = getClassData(soup, "company-ratios")
-   basic_dict = {}
-   li_children = companyratio.find_all("li" , recursive=True)
-   for li_child in li_children:
-      metric_name = li_child.find("span" , {"class": "name"}).text
-      metric_value = li_child.find("span" , {"class": "number"}).text
-      metric_name =removeunwantedChars(metric_name)
-      metric_value = removeunwantedCharsInNumber(metric_value)
-      basic_dict[metric_name] = metric_value
-   return basic_dict
+    companyratio = getClassData(soup, "company-ratios")
+    basic_dict = {}
+    li_children = companyratio.find_all("li" , recursive=True)
+    for li_child in li_children:
+        metric_full_name = li_child.find("span" , {"class": "name"}).text
+        metric_value = li_child.find("span" , {"class": "number"}).text
+        metric_name =camelCase(metric_full_name)
+        raw_val = removeunwantedCharsInNumber(metric_value)
+        if  raw_val.isdigit() or isfloat(raw_val):
+            metric_value = float(raw_val)
+        else:
+            metric_value = raw_val
+        basic_dict[metric_name] = metric_value
+    return basic_dict
 
 def getSectorAndIndustry(soup):
     basic_dict = {}
@@ -156,7 +176,7 @@ def getGeneralData(body, period_frequency):
             dict[period[index-1]] = value
             index = index+1
         if(key!="RawPDF"):
-            superdict[key] = dict
+            superdict[convert_first_letter_to_lowercase(key)] = dict
 
     return superdict
 
@@ -211,15 +231,20 @@ def startScrap(companyticker):
         print("Error while processing Shareholders pattern. seems share holdern pattern missing. security:" ,companyticker )
 
     alldata ={}
-    alldata["securityDescription"] = securityDescription
+    alldata["name"] = securityDescription
 
-    key = website_bse_nse_codes['nsecode'] + ":"+website_bse_nse_codes['bsecode']
+    key = website_bse_nse_codes['nseCode'] + ":"+website_bse_nse_codes['bseCode']
     alldata["_id"]=key
-    alldata = {**alldata, **website_bse_nse_codes, **sectorAndIndustry, **quarterly_results,**profit_loss_dict,**balance_sheet,**cashflows,**ratios,**shareholders_pattern}
-
+    alldata = {**alldata, **website_bse_nse_codes, **sectorAndIndustry,**basic_info_dict}
+    alldata["quarterlyResults"] = quarterly_results
+    alldata["quarterlyResults"] = profit_loss_dict
+    alldata["balanceSheet"] = balance_sheet
+    alldata["cashFlows"] = cashflows
+    alldata["shareholdersPattern"] =shareholders_pattern
+    alldata["ratios"] =ratios
 
     insertIntoMongoDB(alldata, key)
 
 if __name__ == "__main__":
-    companyticker = 'FACT'
+    companyticker = 'TCS'
     startScrap(companyticker)
