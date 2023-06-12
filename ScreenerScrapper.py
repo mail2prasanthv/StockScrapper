@@ -237,11 +237,11 @@ def startScrap(companyticker):
     alldata["_id"]=key
     alldata = {**alldata, **website_bse_nse_codes, **sectorAndIndustry,**basic_info_dict}
     alldata["quarterlyResults"] = quarterly_results
-    alldata["quarterlyResults"] = profit_loss_dict
+    alldata["profitAndLoss"] = profit_loss_dict
     alldata["balanceSheet"] = balance_sheet
     alldata["cashFlows"] = cashflows
-    alldata["shareholdersPattern"] =shareholders_pattern
     alldata["ratios"] =ratios
+    alldata["shareholdersPattern"] =shareholders_pattern
 
     insertIntoMongoDB(alldata, key)
 
