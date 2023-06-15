@@ -18,24 +18,24 @@ def scrapForthelistoftickers(tickers):
     errorindex=1;
     for ticker in each_chunk_list:
         retryCount=1;
-        while retryCount<4:
+        while retryCount<3:
             try:
                 # if index<100:
                 startScrap(ticker)
                 print("Succesfully Processed ", ticker, " index:", index)
             except Exception as e:
                 print("Error while processing Retrying:", ticker, e)
-                time.sleep(10)
+                time.sleep(5)
                 errorindex =0;
                 retryCount = retryCount +1
                 continue 
             break
-        if retryCount>=4:
+        if retryCount>=2:
             print("Retry Failed for ", ticker, " index:", index)
         index = index +1 
         errorindex = errorindex +1
         if(errorindex%40==0):
-            time.sleep(10)
+            time.sleep(5)
             errorindex = 0;
 
 
