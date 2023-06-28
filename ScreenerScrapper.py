@@ -4,14 +4,30 @@ from bs4 import Tag
 import string
 import json
 from pymongo import MongoClient
+import time
 
+HOST = 'localhost'
+PORT = 27017
+DB_NAME = 'stock-market'
+TABLE_NAME = 'companies'
+
+WEBPAGE_NOTFOUND = "Webpage Not Available:"
+DATA_ALREADY_AVAILABLE = "Data already Available in DB:"
+PROCESSED = "Processed Successfully:"
+
+client = MongoClient(HOST, PORT)
+mongodatabase = client[DB_NAME]
+companiesCollection = mongodatabase[TABLE_NAME]
 
 def getWebsiteBseNseCodes(soup):
   div = getClassData(soup, "company-links")
   children = div.find_all("span" , recursive=True)
   website = removeunwantedChars(children[0].text)
   bsecode = removeunwantedChars(children[1].text).replace('BSE:', '')
-  nsecode = removeunwantedChars(children[2].text).replace('NSE:', '')
+  try:
+    nsecode = removeunwantedChars(children[2].text).replace('NSE:', '')
+  except:
+    nsecode = "NOT AVAILABLE"
   basic_dict = {}
   basic_dict['website'] = website
   basic_dict['bseCode'] = bsecode
@@ -30,6 +46,9 @@ def removeunwantedCharsInNumber(str):
 
 def removeunwantedChars(str):
     return str.strip().replace('\n', '').replace(' ', '').replace('\xa0', '').replace('+','').replace('/','')
+
+def removeunwantedCharsRetainSpace(str):
+    return str.strip().replace('\n', '').replace('\xa0', '').replace('+','').replace('/','')
 
 def convertToQuarter(str):
     return removeunwantedChars(str).replace('Mar', 'Q1-').replace('Jun', 'Q2-').replace('Sep', 'Q3-').replace('Dec', 'Q4-')
@@ -77,8 +96,8 @@ def getSectorAndIndustry(soup):
     basic_dict = {}
     section_children = soup.find("section", {"id": "peers"})
     sector_and_industries = section_children.find_all("a")
-    sector = removeunwantedChars(sector_and_industries[0].text)
-    industries = removeunwantedChars(sector_and_industries[1].text)
+    sector = removeunwantedCharsRetainSpace(sector_and_industries[0].text)
+    industries = removeunwantedCharsRetainSpace(sector_and_industries[1].text)
     basic_dict['sector'] = sector
     basic_dict['industries'] = industries
     return basic_dict
@@ -181,21 +200,23 @@ def getGeneralData(body, period_frequency):
     return superdict
 
 def insertIntoMongoDB(alldata, key):
-    host = 'localhost'
-    port = 27017
-    db_name = 'stock-market'
-    table_name = 'securities'
+    companiesCollection.update_one({"_id": key}, {'$set': alldata}, upsert=True)
 
-    client = MongoClient(host, port)
-    mydatabase = client[db_name]
-    mycollection = mydatabase[table_name]
+def requireScrapping(companyticker, force):
+    isRequireScrapping= True;
+    query = {"_id": companyticker}
+    if force==False:
+        result = companiesCollection.find_one(query)
+        if result:
+           isRequireScrapping = False;
+    return isRequireScrapping
 
-    mycollection.update_one({"_id": key}, {'$set': alldata}, upsert=True)
+def startScrap(companyticker,force):
 
+    scrappingRequired = requireScrapping(companyticker, force )
+    if not scrappingRequired:
+        return DATA_ALREADY_AVAILABLE + companyticker
 
-
-
-def startScrap(companyticker):
     urlprefix ="https://www.screener.in/company/"
     urlPostfix ='/consolidated/'
     URL = urlprefix+companyticker+urlPostfix
@@ -203,8 +224,24 @@ def startScrap(companyticker):
     headers = {
     "User-Agent": 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/113.0.0.0 Safari/537.36'}
     
-    r = requests.get(URL, headers=headers)  
-    soup = BeautifulSoup(r.content, 'html5lib') 
+    retryCount =0;
+    while True:
+        responses = requests.get(URL, headers=headers) 
+        statusCode = responses.status_code
+        if statusCode== 404:
+            return WEBPAGE_NOTFOUND + companyticker
+        elif statusCode ==200:
+            break
+        elif statusCode!= 429:
+            print("Status Code:", statusCode)
+        elif statusCode==429:
+            retryCount = retryCount +1
+            print("Retrying:", companyticker,":" ,retryCount)
+            time.sleep(5)
+            if retryCount>=3:
+                break;
+        
+    soup = BeautifulSoup(responses.content, 'html5lib') 
 
     securityDescription = getSecurityDescription(soup)
 
@@ -233,8 +270,8 @@ def startScrap(companyticker):
     alldata ={}
     alldata["name"] = securityDescription
 
-    key = website_bse_nse_codes['nseCode'] + ":"+website_bse_nse_codes['bseCode']
-    alldata["_id"]=key
+    
+    alldata["_id"]=companyticker
     alldata = {**alldata, **website_bse_nse_codes, **sectorAndIndustry,**basic_info_dict}
     alldata["quarterlyResults"] = quarterly_results
     alldata["profitAndLoss"] = profit_loss_dict
@@ -243,8 +280,26 @@ def startScrap(companyticker):
     alldata["ratios"] =ratios
     alldata["shareholdersPattern"] =shareholders_pattern
 
-    insertIntoMongoDB(alldata, key)
+    insertIntoMongoDB(alldata, companyticker)
+
+    
+    return PROCESSED + companyticker
+
+# def isWebpageAvailable(soup):
+#     pagenotFound = getClassData(soup, "card card-medium")
+#     if not pagenotFound:
+#         return True
+#     errorTag = pagenotFound.find("h2")
+#     if not errorTag:
+#         return True
+#     errorText = errorTag.text
+#     if not errorText:
+#         return True
+#     if errorText=="Error 404: Page Not Found":
+#         return False
+#     return True;
+        
 
 if __name__ == "__main__":
-    companyticker = 'TCS'
-    startScrap(companyticker)
+    companyticker = 'ALLETEC'
+    startScrap(companyticker, True)
