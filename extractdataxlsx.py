@@ -4,7 +4,9 @@ import time
 def getCompanies():
     bse_csv_file_name = "./exchanges/bse.csv"
     nse_excel_file_name = "./exchanges/nse.xlsx"
-    bseData = pd.read_csv(bse_csv_file_name)
+
+    usecols = ["Security Code", "Issuer Name", "Security Id", "Status", "Group", "Instrument"]
+    bseData =  pd.read_csv(bse_csv_file_name, usecols=usecols,index_col=False)
     nseData = pd.read_excel(nse_excel_file_name)
     
 
@@ -19,22 +21,30 @@ def getExchangeData(exchangeData, isBse):
     # else:
     #     df = pd.DataFrame(bseData, columns=['Symbol','Company Name'])
     
-    bseCompanies = {}
+    companies = []
     for index, row  in exchangeData.iterrows():
+        company = {}
         if isBse == False:
             symbol = str(row['Symbol'])
             name = str(row['Company Name'])
+            bseCode=''
         if isBse ==True:
-            instrument = str(row['Industry'])#actually checking Instrument- csv has some problems, industry is mapped to instrument
-            if instrument=="Equity":
-                symbol = str(row['Issuer Name'])#Issuer Name is mapped to security wrongly
-                name = str(row['Security Id'])# security name
+            instrument = str(row['Instrument'])
+            status = str(row['Status'])
+            if instrument=="Equity" and status=='Active':
+                symbol = str(row['Security Id'])
+                bseCode = str(row['Security Code'])
+                name = str(row['Issuer Name'])
             else:
                 continue
-        bseCompanies[symbol] = name
+        company["symbol"] = symbol
+        company["name"] = name
+        company["bseCode"] = bseCode
+
+        companies.append(company)
         # print(name,symbol  )
                                                                 
-    return bseCompanies
+    return companies
 
 if __name__ == "__main__":
    getCompanies()

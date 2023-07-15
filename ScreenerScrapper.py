@@ -85,6 +85,9 @@ def getbasicInfo(soup):
         metric_value = li_child.find("span" , {"class": "number"}).text
         metric_name =camelCase(metric_full_name)
         raw_val = removeunwantedCharsInNumber(metric_value)
+        if metric_name=='marketCap' and raw_val=='':
+            raise MarketCapDataNotAvailableException
+            
         if  raw_val.isdigit() or isfloat(raw_val):
             metric_value = float(raw_val)
         else:
@@ -202,53 +205,107 @@ def getGeneralData(body, period_frequency):
 def insertIntoMongoDB(alldata, key):
     companiesCollection.update_one({"_id": key}, {'$set': alldata}, upsert=True)
 
-def requireScrapping(companyticker, force):
+def requireScrapping(bseCode, ticker, force):
     isRequireScrapping= True;
-    query = {"_id": companyticker}
-    if force==False:
-        result = companiesCollection.find_one(query)
-        if result:
-           isRequireScrapping = False;
-    return isRequireScrapping
+    if force== True:
+        return True
 
-def startScrap(companyticker,force):
+    query = {"_id": ticker}
+    result = companiesCollection.find_one(query)
+    if result:
+        return False;
+    
+    query = {"_id": bseCode}
+    result = companiesCollection.find_one(query)
+    if result:
+        return False
+    return True
 
-    scrappingRequired = requireScrapping(companyticker, force )
+def startScrap(bseCode, ticker, force):
+    key = ticker
+    
+    scrappingRequired = requireScrapping(bseCode, ticker, force )
     if not scrappingRequired:
-        return DATA_ALREADY_AVAILABLE + companyticker
-
+        print("Data Already Available:", ticker, " BseCode:" + bseCode)
+        retry = False
+        return
     urlprefix ="https://www.screener.in/company/"
-    urlPostfix ='/consolidated/'
-    URL = urlprefix+companyticker+urlPostfix
+    consolidated ='/consolidated/'
+    standalone ="/"
+    mode =consolidated
+    retryCount =1
+    MAX_RETRY=3
+    
+    retry = True
+    key = ticker
+    while(retry and retryCount<=MAX_RETRY):
+        try:
+            URL = urlprefix+key+mode
+           
+            scrap(URL,key)
+            print("Successfully processed:", ticker, " BseCode:" + bseCode)
+            retry = False
+        except (WebPageNotAvailableException, MarketCapDataNotAvailableException):
+            if bseCode!='' and key== bseCode and mode==standalone:
+                print("FAILED: WebPage not available:", ticker," bsecode:",bseCode,  ":count")
+                retry= False
+            elif mode==standalone and key==ticker and bseCode!='': 
+                key = bseCode
+                mode = consolidated
+                print("Switching to Consolidated with bseCode", ticker, ": BSE Code:" , bseCode)
+            elif bseCode!='' and key== bseCode and mode==standalone:
+                print("FAILED: WebPage not available:", ticker," bsecode:",bseCode,  ":count")
+                retry= False
+            elif(mode==consolidated):
+                mode=standalone
+                print("Switching to standalone:", ticker)
+            else:
+                print("FAILED: Uknown Reason:", ticker," bsecode:",bseCode,  ":count")
+                retry= False
+        except TooManyHttpRequestsException:
+            print("Too many Requests :Retrying:", ticker, " bsecode:",bseCode, ":count" ,retryCount)
+            time.sleep(5)
+            retryCount = retryCount +1
+        except Exception as error:
+            print(error)
+            print("FAILED: Exception:", ticker," bsecode:",bseCode,  ":count")
+            retry= False
+        
+    if MAX_RETRY<retryCount:
+        print("FAILED: Retry:", ticker," bsecode:",bseCode,  ":count")    
+
+def scrap(URL,key):
 
     headers = {
     "User-Agent": 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/113.0.0.0 Safari/537.36'}
-    
-    retryCount =0;
+
+
     while True:
         responses = requests.get(URL, headers=headers) 
         statusCode = responses.status_code
         if statusCode== 404:
-            return WEBPAGE_NOTFOUND + companyticker
+            raise WebPageNotAvailableException
         elif statusCode ==200:
             break
         elif statusCode!= 429:
             print("Status Code:", statusCode)
         elif statusCode==429:
-            retryCount = retryCount +1
-            print("Retrying:", companyticker,":" ,retryCount)
-            time.sleep(5)
-            if retryCount>=3:
-                break;
+            raise TooManyHttpRequestsException
         
     soup = BeautifulSoup(responses.content, 'html5lib') 
 
+    basic_info_dict = getbasicInfo(soup)
+
     securityDescription = getSecurityDescription(soup)
+
 
     website_bse_nse_codes = getWebsiteBseNseCodes(soup)
 
-    basic_info_dict = getbasicInfo(soup)
 
+    
+
+
+    data_available = True
     sectorAndIndustry =  getSectorAndIndustry(soup)
 
     quarterly_results = getQuarterlyResults(soup)
@@ -265,13 +322,13 @@ def startScrap(companyticker,force):
     try:
         shareholders_pattern = getShareHoldingPattern(soup)
     except:
-        print("Error while processing Shareholders pattern. seems share holdern pattern missing. security:" ,companyticker )
+        print("Error while processing Shareholders pattern. seems share holdern pattern missing. security:" ,key )
 
     alldata ={}
     alldata["name"] = securityDescription
 
-    
-    alldata["_id"]=companyticker
+
+    alldata["_id"]=key
     alldata = {**alldata, **website_bse_nse_codes, **sectorAndIndustry,**basic_info_dict}
     alldata["quarterlyResults"] = quarterly_results
     alldata["profitAndLoss"] = profit_loss_dict
@@ -280,10 +337,10 @@ def startScrap(companyticker,force):
     alldata["ratios"] =ratios
     alldata["shareholdersPattern"] =shareholders_pattern
 
-    insertIntoMongoDB(alldata, companyticker)
+    insertIntoMongoDB(alldata, key)
 
-    
-    return PROCESSED + companyticker
+
+    return PROCESSED + key
 
 # def isWebpageAvailable(soup):
 #     pagenotFound = getClassData(soup, "card card-medium")
@@ -299,7 +356,16 @@ def startScrap(companyticker,force):
 #         return False
 #     return True;
         
+# define Python user-defined exceptions
+class MarketCapDataNotAvailableException(Exception):
+    pass
+
+class WebPageNotAvailableException(Exception):
+    pass
+
+class TooManyHttpRequestsException(Exception):
+    pass
 
 if __name__ == "__main__":
-    companyticker = 'ALLETEC'
-    startScrap(companyticker, True)
+    companyticker = 'ALNATRD'
+    startScrap("506120", companyticker, True)
