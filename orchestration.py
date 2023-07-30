@@ -77,10 +77,6 @@ bseCompanies, nseCompanies = getCompanies();
 companies = bseCompanies + nseCompanies
 
 
-
-
-
-
 unque_companies =  getUniqueDictionary(companies, "symbol")
 sorted_companies = sort_dictionary(unque_companies)
 

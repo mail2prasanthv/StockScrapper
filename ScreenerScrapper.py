@@ -5,6 +5,7 @@ import string
 import json
 from pymongo import MongoClient
 import time
+import datetime
 
 HOST = 'localhost'
 PORT = 27017
@@ -86,6 +87,7 @@ def getbasicInfo(soup):
         metric_name =camelCase(metric_full_name)
         raw_val = removeunwantedCharsInNumber(metric_value)
         if metric_name=='marketCap' and raw_val=='':
+            print("FAILED : MarketCap Not Found:" )
             raise MarketCapDataNotAvailableException
             
         if  raw_val.isdigit() or isfloat(raw_val):
@@ -210,15 +212,17 @@ def requireScrapping(bseCode, ticker, force):
     if force== True:
         return True
 
-    query = {"_id": ticker}
+    query = {"nseCode": ticker}
     result = companiesCollection.find_one(query)
     if result:
         return False;
     
-    query = {"_id": bseCode}
-    result = companiesCollection.find_one(query)
-    if result:
-        return False
+    if bseCode:
+        query = {"bseCode": bseCode}
+        result = companiesCollection.find_one(query)
+        if result:
+            return False
+        
     return True
 
 def startScrap(bseCode, ticker, force):
@@ -245,7 +249,7 @@ def startScrap(bseCode, ticker, force):
             scrap(URL,key)
             print("Successfully processed:", ticker, " BseCode:" + bseCode)
             retry = False
-        except (WebPageNotAvailableException, MarketCapDataNotAvailableException):
+        except (WebPageNotAvailableException, MarketCapDataNotAvailableException, LatestDataNotAvailable):
             if bseCode!='' and key== bseCode and mode==standalone:
                 print("FAILED: WebPage not available:", ticker," bsecode:",bseCode,  ":count")
                 retry= False
@@ -298,19 +302,26 @@ def scrap(URL,key):
 
     securityDescription = getSecurityDescription(soup)
 
-
     website_bse_nse_codes = getWebsiteBseNseCodes(soup)
 
-
-    
-
-
-    data_available = True
     sectorAndIndustry =  getSectorAndIndustry(soup)
 
     quarterly_results = getQuarterlyResults(soup)
 
     profit_loss_dict = getProfitAndLoss(soup)
+
+    first_key_in_profit_and_loss = list(profit_loss_dict.keys())[0]
+
+    profit_loss_first_dictionary = profit_loss_dict[first_key_in_profit_and_loss]
+    years_list = list(profit_loss_first_dictionary.keys())
+    years_list.remove("TTM")
+    last_element = years_list[-1]
+    current_year = datetime.date.today().year
+    previous_year = current_year - 1
+    if "Year-" + str(current_year) != last_element and "Year-" + str(previous_year) != last_element:
+        raise LatestDataNotAvailable
+
+
 
     balance_sheet = getBalanceSheet(soup)
 
@@ -366,6 +377,9 @@ class WebPageNotAvailableException(Exception):
 class TooManyHttpRequestsException(Exception):
     pass
 
+class LatestDataNotAvailable(Exception):
+    pass
+
 if __name__ == "__main__":
-    companyticker = 'ALNATRD'
-    startScrap("506120", companyticker, True)
+    companyticker = 'APOLLOPIPE'
+    startScrap("531761", companyticker, True)
