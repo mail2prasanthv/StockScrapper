@@ -207,30 +207,24 @@ def getGeneralData(body, period_frequency):
 def insertIntoMongoDB(alldata, key):
     companiesCollection.update_one({"_id": key}, {'$set': alldata}, upsert=True)
 
-def requireScrapping(bseCode, ticker, force):
-    isRequireScrapping= True;
+def requireScrapping(isin, force):
+    
     if force== True:
         return True
 
-    query = {"nseCode": ticker}
+    query = {"isin": isin}
     result = companiesCollection.find_one(query)
     if result:
         return False;
-    
-    if bseCode:
-        query = {"bseCode": bseCode}
-        result = companiesCollection.find_one(query)
-        if result:
-            return False
-        
+           
     return True
 
-def startScrap(bseCode, ticker, force):
-    key = ticker
+def startScrap(code, isin, force):
+    key = code
     
-    scrappingRequired = requireScrapping(bseCode, ticker, force )
+    scrappingRequired = requireScrapping(isin, force)
     if not scrappingRequired:
-        print("Data Already Available:", ticker, " BseCode:" + bseCode)
+        print("Data Already Available:", code)
         retry = False
         return
     urlprefix ="https://www.screener.in/company/"
@@ -241,38 +235,27 @@ def startScrap(bseCode, ticker, force):
     MAX_RETRY=3
     
     retry = True
-    key = ticker
+    
     while(retry and retryCount<=MAX_RETRY):
         try:
             URL = urlprefix+key+mode
-           
             scrap(URL,key)
-            print("Successfully processed:", ticker, " BseCode:" + bseCode)
+            print("Successfully processed:", code)
             retry = False
         except (WebPageNotAvailableException, MarketCapDataNotAvailableException, LatestDataNotAvailable):
-            if bseCode!='' and key== bseCode and mode==standalone:
-                print("FAILED: WebPage not available:", ticker," bsecode:",bseCode,  ":count")
-                retry= False
-            elif mode==standalone and key==ticker and bseCode!='': 
-                key = bseCode
-                mode = consolidated
-                print("Switching to Consolidated with bseCode", ticker, ": BSE Code:" , bseCode)
-            elif bseCode!='' and key== bseCode and mode==standalone:
-                print("FAILED: WebPage not available:", ticker," bsecode:",bseCode,  ":count")
-                retry= False
-            elif(mode==consolidated):
-                mode=standalone
-                print("Switching to standalone:", ticker)
-            else:
-                print("FAILED: Uknown Reason:", ticker," bsecode:",bseCode,  ":count")
-                retry= False
+            if mode==standalone:
+                print("FAILED: WebPage not available:", key)
+                raise WebPageNotAvailableException
+            elif mode==consolidated : 
+                mode = standalone
+                print("Switching to standalone for", key)
         except TooManyHttpRequestsException:
-            print("Too many Requests :Retrying:", ticker, " bsecode:",bseCode, ":count" ,retryCount)
+            print("Too many Requests :Retrying:", key, ":retryCount:" ,retryCount)
             time.sleep(5)
             retryCount = retryCount +1
         except Exception as error:
             print(error)
-            print("FAILED: Exception:", ticker," bsecode:",bseCode,  ":count")
+            print("FAILED: Exception:", ":retryCount:" ,retryCount)
             retry= False
         
     if MAX_RETRY<retryCount:

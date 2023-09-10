@@ -35,9 +35,14 @@ def getUniqueDictionary(list_of_dicts, field):
             seen_names.add(d[field])
     return unique_list
 
-def scrapForthelistoftickers(companies, force):
-    for  company in companies:
-        msg = startScrap(company["bseCode"], company["symbol"],force)
+def scrapForthelistoftickers(isin_nse_bse_codes_map, force):
+    for index, (isin, nse_bse_codes) in enumerate(isin_nse_bse_codes_map.items()):
+          nse_bse_codes_list = list(nse_bse_codes)
+          try:
+            msg = startScrap(nse_bse_codes_list[0], isin, force)
+          except (WebPageNotAvailableException, MarketCapDataNotAvailableException, LatestDataNotAvailable):
+            if(len(nse_bse_codes_list)>1):
+              msg = startScrap(nse_bse_codes_list[1], isin, force)
     # index =1;
     # errorindex=1;
     # maxretry=2
@@ -72,19 +77,10 @@ file_exists = os.path.isfile(path)
 
 length_to_split = [50]
 
-bseCompanies, nseCompanies = getCompanies();
-
-companies = bseCompanies + nseCompanies
+isin_nse_bse_codes_map = getCompaniesv2()
 
 
-unque_companies =  getUniqueDictionary(companies, "symbol")
-sorted_companies = sort_dictionary(unque_companies)
-
-list_of_lists = list(divide_chunks(sorted_companies, 50))
-
-for index, each_chunk_list in enumerate(list_of_lists):
-    print("----------------", "Chunk Count:", index,"----------------")
-    scrapForthelistoftickers(each_chunk_list,False)
+scrapForthelistoftickers(isin_nse_bse_codes_map,False)
 
 print("Finished") 
 
