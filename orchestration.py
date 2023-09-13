@@ -39,8 +39,10 @@ def scrapForthelistoftickers(isin_nse_bse_codes_map, force):
     for index, (isin, nse_bse_codes) in enumerate(isin_nse_bse_codes_map.items()):
           nse_bse_codes_list = list(nse_bse_codes)
           try:
+            print("start scrap:" , nse_bse_codes_list[0], " all codes:", nse_bse_codes)
             msg = startScrap(nse_bse_codes_list[0], isin, force)
           except (WebPageNotAvailableException, MarketCapDataNotAvailableException, LatestDataNotAvailable):
+            print("Fail to scrap:" , nse_bse_codes_list[0], " :count: " , len(nse_bse_codes_list), " nse_bse_codes:", nse_bse_codes)
             if(len(nse_bse_codes_list)>1):
               msg = startScrap(nse_bse_codes_list[1], isin, force)
     # index =1;

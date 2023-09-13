@@ -215,7 +215,7 @@ def requireScrapping(isin, force):
     query = {"isin": isin}
     result = companiesCollection.find_one(query)
     if result:
-        return False;
+        return False
            
     return True
 
@@ -228,8 +228,8 @@ def startScrap(code, isin, force):
         retry = False
         return
     urlprefix ="https://www.screener.in/company/"
-    consolidated ='/consolidated/'
-    standalone ="/"
+    consolidated ='consolidated'
+    standalone =""
     mode =consolidated
     retryCount =1
     MAX_RETRY=3
@@ -238,8 +238,11 @@ def startScrap(code, isin, force):
     
     while(retry and retryCount<=MAX_RETRY):
         try:
-            URL = urlprefix+key+mode
-            scrap(URL,key)
+            URL = urlprefix+key+ "/" + mode
+            mode_desc = mode
+            if mode ==standalone:
+                mode_desc = 'standalone'
+            scrap(URL,key, isin,  mode_desc)
             print("Successfully processed:", code)
             retry = False
         except (WebPageNotAvailableException, MarketCapDataNotAvailableException, LatestDataNotAvailable):
@@ -261,7 +264,7 @@ def startScrap(code, isin, force):
     if MAX_RETRY<retryCount:
         print("FAILED: Retry:", ticker," bsecode:",bseCode,  ":count")    
 
-def scrap(URL,key):
+def scrap(URL, key, isin, mode):
 
     headers = {
     "User-Agent": 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/113.0.0.0 Safari/537.36'}
@@ -297,14 +300,13 @@ def scrap(URL,key):
 
     profit_loss_first_dictionary = profit_loss_dict[first_key_in_profit_and_loss]
     years_list = list(profit_loss_first_dictionary.keys())
-    years_list.remove("TTM")
+    if "TTM" in years_list:
+        years_list.remove("TTM")
     last_element = years_list[-1]
     current_year = datetime.date.today().year
     previous_year = current_year - 1
     if "Year-" + str(current_year) != last_element and "Year-" + str(previous_year) != last_element:
         raise LatestDataNotAvailable
-
-
 
     balance_sheet = getBalanceSheet(soup)
 
@@ -322,7 +324,9 @@ def scrap(URL,key):
     alldata["name"] = securityDescription
 
 
-    alldata["_id"]=key
+    alldata["_id"]=isin
+    alldata["isin"]=isin
+    alldata["mode"]=mode
     alldata = {**alldata, **website_bse_nse_codes, **sectorAndIndustry,**basic_info_dict}
     alldata["quarterlyResults"] = quarterly_results
     alldata["profitAndLoss"] = profit_loss_dict
@@ -331,10 +335,10 @@ def scrap(URL,key):
     alldata["ratios"] =ratios
     alldata["shareholdersPattern"] =shareholders_pattern
 
-    insertIntoMongoDB(alldata, key)
+    insertIntoMongoDB(alldata, isin)
 
 
-    return PROCESSED + key
+    return PROCESSED + key + ":" + isin
 
 # def isWebpageAvailable(soup):
 #     pagenotFound = getClassData(soup, "card card-medium")
