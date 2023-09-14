@@ -63,14 +63,23 @@ def getCompaniesv2():
 
     isin_nse_bse_codes_map = {}
     for isin in bse_nse_isin_list:
+        exchanges = []
         nse_bse_codes_set = set()
+        exchanges_set = set()
         nse_company = nseCompanies.get(isin, None)
         bse_company = bseCompanies.get(isin, None)
         if nse_company != None:
-            nse_bse_codes_set.add(nse_company["symbol"])
+            exchange = {}
+            exchange["code"] = nse_company["symbol"]
+            exchange["name"] ="NSE"
+            exchanges.append(exchange)
         if bse_company != None:
-            nse_bse_codes_set.add(bse_company["symbol"])
-        isin_nse_bse_codes_map[isin] = nse_bse_codes_set
+            exchange = {}
+            exchange["code"] = bse_company["symbol"]
+            exchange["name"] ="BSE"
+            exchanges.append(exchange)
+
+        isin_nse_bse_codes_map[isin] = exchanges
         
     return isin_nse_bse_codes_map
 

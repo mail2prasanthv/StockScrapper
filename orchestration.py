@@ -36,15 +36,27 @@ def getUniqueDictionary(list_of_dicts, field):
     return unique_list
 
 def scrapForthelistoftickers(isin_nse_bse_codes_map, force):
-    for index, (isin, nse_bse_codes) in enumerate(isin_nse_bse_codes_map.items()):
-          nse_bse_codes_list = list(nse_bse_codes)
-          try:
-            print("start scrap:" , nse_bse_codes_list[0], " all codes:", nse_bse_codes)
-            msg = startScrap(nse_bse_codes_list[0], isin, force)
-          except (WebPageNotAvailableException, MarketCapDataNotAvailableException, LatestDataNotAvailable):
-            print("Fail to scrap:" , nse_bse_codes_list[0], " :count: " , len(nse_bse_codes_list), " nse_bse_codes:", nse_bse_codes)
-            if(len(nse_bse_codes_list)>1):
-              msg = startScrap(nse_bse_codes_list[1], isin, force)
+    for index, (isin, exchanges) in enumerate(isin_nse_bse_codes_map.items()):
+          if exchanges is not None:
+            code = '';
+            exchange_name ='';
+            try:
+              exchange = exchanges[0]
+              code = exchange["code"]
+              exchange_name = exchange["name"]
+              print("start scrap:" , code, " exchange:", exchange_name)
+              msg = startScrap(code, isin, exchange_name, force)
+            except (WebPageNotAvailableException, MarketCapDataNotAvailableException, LatestDataNotAvailable):
+              print("Fail to scrap:" , code, " :exchange: " , exchange_name)
+              if(len(exchanges)>1):
+                exchange = exchanges[1]
+                code = exchange["code"]
+                exchange_name = exchange["name"]
+                print("start scrap:" , code, " exchange:", exchange_name)
+                try:
+                  msg = startScrap(code, isin, exchange_name, force)
+                except (WebPageNotAvailableException, MarketCapDataNotAvailableException, LatestDataNotAvailable):
+                   print("Fail to scrap:" , code, " :exchange: " , exchange_name)
     # index =1;
     # errorindex=1;
     # maxretry=2

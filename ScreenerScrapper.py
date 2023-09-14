@@ -219,7 +219,7 @@ def requireScrapping(isin, force):
            
     return True
 
-def startScrap(code, isin, force):
+def startScrap(code, isin,exchange_name, force):
     key = code
     
     scrappingRequired = requireScrapping(isin, force)
@@ -242,7 +242,7 @@ def startScrap(code, isin, force):
             mode_desc = mode
             if mode ==standalone:
                 mode_desc = 'standalone'
-            scrap(URL,key, isin,  mode_desc)
+            scrap(URL,key, isin, exchange_name, mode_desc)
             print("Successfully processed:", code)
             retry = False
         except (WebPageNotAvailableException, MarketCapDataNotAvailableException, LatestDataNotAvailable):
@@ -264,7 +264,7 @@ def startScrap(code, isin, force):
     if MAX_RETRY<retryCount:
         print("FAILED: Retry:", ticker," bsecode:",bseCode,  ":count")    
 
-def scrap(URL, key, isin, mode):
+def scrap(URL, key, isin, exchange_name, mode):
 
     headers = {
     "User-Agent": 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/113.0.0.0 Safari/537.36'}
@@ -327,6 +327,7 @@ def scrap(URL, key, isin, mode):
     alldata["_id"]=isin
     alldata["isin"]=isin
     alldata["mode"]=mode
+    alldata["exchange"] = exchange_name
     alldata = {**alldata, **website_bse_nse_codes, **sectorAndIndustry,**basic_info_dict}
     alldata["quarterlyResults"] = quarterly_results
     alldata["profitAndLoss"] = profit_loss_dict
