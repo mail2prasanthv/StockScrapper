@@ -191,7 +191,7 @@ def getGeneralData(body, period_frequency):
             else:
                 value = removeunwantedCharsInNumber(element.text)
             if index==0:
-                key= value;
+                key= value.replace('.','');
                 index = index+1
                 continue
             if(key=="RawPDF") or value=='':
@@ -370,4 +370,4 @@ class LatestDataNotAvailable(Exception):
 
 if __name__ == "__main__":
     companyticker = 'APOLLOPIPE'
-    startScrap("531761", companyticker, True)
+    startScrap(companyticker,"INE126J01016","NSE" ,True)
