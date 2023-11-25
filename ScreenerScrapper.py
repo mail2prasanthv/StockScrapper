@@ -6,6 +6,8 @@ import json
 from pymongo import MongoClient
 import time
 import datetime
+import calendar
+from datetime import datetime
 
 HOST = 'localhost'
 PORT = 27017
@@ -41,18 +43,43 @@ def isfloat(num):
         return True
     except ValueError:
         return False
+    
+def month_abbreviation_to_number(abbreviation):
+    months = {
+        'Jan': 1,
+        'Feb': 2,
+        'Mar': 3,
+        'Apr': 4,
+        'May': 5,
+        'Jun': 6,
+        'Jul': 7,
+        'Aug': 8,
+        'Sep': 9,
+        'Oct': 10,
+        'Nov': 11,
+        'Dec': 12
+    }
+
+    return months.get(abbreviation.capitalize())
 
 def removeunwantedCharsInNumber(str):
     return removeunwantedChars(str).replace(',', '').replace('%', '')
 
 def removeunwantedChars(str):
     return str.strip().replace('\n', '').replace(' ', '').replace('\xa0', '').replace('+','').replace('/','')
+    
 
 def removeunwantedCharsRetainSpace(str):
     return str.strip().replace('\n', '').replace('\xa0', '').replace('+','').replace('/','')
 
-def convertToQuarter(str):
-    return removeunwantedChars(str).replace('Mar', 'Q1-').replace('Jun', 'Q2-').replace('Sep', 'Q3-').replace('Dec', 'Q4-')
+def convertToDate(str):
+    list = str.split()# Sep 2021
+    year=  int(list[1])
+    month = month_abbreviation_to_number(list[0])
+    day = calendar.monthrange(year, month)[1]
+    # end_date = datetime.datetime(year, month, day)
+    return   f"{year}-{month:02d}-{day:02d}"
+    # return end_date.strftime("%Y-%m-%d")
 
 def convertToYear(str):
     return removeunwantedChars(str).replace('Mar', 'Year-')
@@ -85,6 +112,8 @@ def getbasicInfo(soup):
         metric_full_name = li_child.find("span" , {"class": "name"}).text
         metric_value = li_child.find("span" , {"class": "number"}).text
         metric_name =camelCase(metric_full_name)
+        if(metric_name=='currentPrice'):
+            metric_name ='asOfDatePrice'
         raw_val = removeunwantedCharsInNumber(metric_value)
         if metric_name=='marketCap' and raw_val=='':
             print("FAILED : MarketCap Not Found:" )
@@ -110,8 +139,9 @@ def getSectorAndIndustry(soup):
 def getHeaderInQuarters(section_children):
     quarters = []
     for quarter_head in getHeaders(section_children, None):
-        quarter_format = convertToQuarter(quarter_head)
-        quarters.append(quarter_format)
+        if(quarter_head!= "TTM"):
+          quarter_head = convertToDate(quarter_head)
+        quarters.append(quarter_head)
     return quarters
 
 def getHeaderInYears(section_children):
@@ -129,7 +159,7 @@ def getHeaders(section_children,style):
         quarter_head_text = quarter_head.text;
         if quarter_head_text == "":
             continue
-        quarter_format = removeunwantedChars(quarter_head_text)
+        quarter_format = removeunwantedCharsRetainSpace(quarter_head_text)
         quarters.append(quarter_format)
     return quarters
 
@@ -171,10 +201,10 @@ def getCashFlows(soup):
 
 def getGeneralData(body, period_frequency):
     period=None
-    if(period_frequency=='Quarterly'):
-        period = getHeaderInQuarters(body)
-    elif(period_frequency=='Yearly'):
-        period = getHeaderInYears(body)
+    # if(period_frequency=='Quarterly'):
+    #     period = getHeaderInQuarters(body)
+    # elif(period_frequency=='Yearly'):
+    period = getHeaderInQuarters(body)
 
     table_body = body.find("tbody")
     rows= table_body.find_all("tr")
@@ -303,9 +333,10 @@ def scrap(URL, key, isin, exchange_name, mode):
     if "TTM" in years_list:
         years_list.remove("TTM")
     last_element = years_list[-1]
-    current_year = datetime.date.today().year
+    current_year = datetime.today().year
     previous_year = current_year - 1
-    if "Year-" + str(current_year) != last_element and "Year-" + str(previous_year) != last_element:
+    last_data_availability_date = datetime.strptime(last_element, "%Y-%m-%d").date()
+    if last_data_availability_date.year<current_year-1:
         raise LatestDataNotAvailable
 
     balance_sheet = getBalanceSheet(soup)
@@ -326,6 +357,7 @@ def scrap(URL, key, isin, exchange_name, mode):
 
     alldata["_id"]=isin
     alldata["isin"]=isin
+    alldata["asOfDate"]=datetime.now().strftime('%Y-%m-%d')
     alldata["mode"]=mode
     alldata["exchange"] = exchange_name
     alldata = {**alldata, **website_bse_nse_codes, **sectorAndIndustry,**basic_info_dict}
@@ -369,5 +401,5 @@ class LatestDataNotAvailable(Exception):
     pass
 
 if __name__ == "__main__":
-    companyticker = 'APOLLOPIPE'
-    startScrap(companyticker,"INE126J01016","NSE" ,True)
+    companyticker = 'KRBL'
+    startScrap(companyticker,"INE001B01026","NSE" ,True)
