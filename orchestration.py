@@ -36,63 +36,34 @@ def getUniqueDictionary(list_of_dicts, field):
     return unique_list
 
 def scrapForthelistoftickers(isin_nse_bse_codes_map, force):
+    failedList =[]
+    now= datetime.now().strftime('%Y-%m-%d %H:%M:%S')
     for index, (isin, exchanges) in enumerate(isin_nse_bse_codes_map.items()):
-          if exchanges is not None:
-            code = '';
-            exchange_name ='';
-            try:
-              exchange = exchanges[0]
-              code = exchange["code"]
-              exchange_name = exchange["name"]
-              print("start scrap:" , code, " exchange:", exchange_name)
-              msg = startScrap(code, isin, exchange_name, force)
-            except (WebPageNotAvailableException, MarketCapDataNotAvailableException, LatestDataNotAvailable):
-              print("Fail to scrap:" , code, " :exchange: " , exchange_name)
-              if(len(exchanges)>1):
-                exchange = exchanges[1]
-                code = exchange["code"]
-                exchange_name = exchange["name"]
-                print("start scrap:" , code, " exchange:", exchange_name)
-                try:
-                  msg = startScrap(code, isin, exchange_name, force)
-                except (WebPageNotAvailableException, MarketCapDataNotAvailableException, LatestDataNotAvailable):
-                   print("Fail to scrap:" , code, " :exchange: " , exchange_name)
-    # index =1;
-    # errorindex=1;
-    # maxretry=2
-    # for  ticker in tickers:
-    #     retryCountIndex=1
-    #     while retryCountIndex<maxretry:
-    #         try:                
-    #             msg = startScrap(ticker["bseCode"], ticker["symbol"],force)
-    #             print(msg)
-    #         except Exception as e:
-    #             print("Error while processing Retrying:", ticker, e)
-    #             # time.sleep(5)
-    #             errorindex =0;
-    #             retryCountIndex = retryCountIndex +1
-    #             continue 
-    #         break
-    #     if retryCountIndex==maxretry:
-    #         print("Retry Failed for ", ticker, " index:", index)
-    #     index = index +1 
-    #     errorindex = errorindex +1
-        # if(index%30==0):
-        #     # time.sleep(5)
-        #     errorindex = 0;
+      for index,exchange in enumerate(exchanges):
+        code = ''
+        exchange_name =''
+        try:
+          code = exchange["code"]
+          exchange_name = exchange["name"]
+          print("start scrap:" , code, " exchange:", exchange_name)
+          msg = startScrap(code, isin, exchange_name, force)
+          break
+        except (WebPageNotAvailableException, MarketCapDataNotAvailableException, LatestDataNotAvailable):
+          print("Fail to scrap:" , code, " :exchange: " , exchange_name)
+          if(index==len(exchanges)-1):
+            failedList.append(code+":"+isin)
+            with open('failed_'+now+'.txt', 'a') as file:
+                file.write(code+":"+isin+'\n')
+    print("Failed List:")
+    print(failedList)
+    
 
 
-path = "./" + "nse_security_list.xlsx"
 
-file_exists = os.path.isfile(path)
-
-# if file_exists is False:
-#     downloadNseSecurityListFile()
 
 length_to_split = [50]
 
 isin_nse_bse_codes_map = getCompaniesv2()
-
 
 scrapForthelistoftickers(isin_nse_bse_codes_map,False)
 

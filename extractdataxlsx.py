@@ -48,8 +48,8 @@ import time
 #     return companies
 
 def getCompaniesv2():
-    bse_csv_file_name = "./exchanges/v2/bse.csv"
-    nse_csv_file_name = "./exchanges/v2/nse.csv"
+    bse_csv_file_name = "./exchanges/v3/bse.csv"
+    nse_csv_file_name = "./exchanges/v3/nse.csv"
 
     bse_usecols = ["Security Code", "Issuer Name", "Security Id", "Status", "Group", "Instrument", "ISIN No"]
     nse_usecols = ["SYMBOL", "NAME OF COMPANY", " ISIN NUMBER"]
@@ -64,8 +64,8 @@ def getCompaniesv2():
     isin_nse_bse_codes_map = {}
     for isin in bse_nse_isin_list:
         exchanges = []
-        nse_bse_codes_set = set()
-        exchanges_set = set()
+        # nse_bse_codes_set = set()
+        # exchanges_set = set()
         nse_company = nseCompanies.get(isin, None)
         bse_company = bseCompanies.get(isin, None)
         if nse_company != None:
@@ -75,7 +75,7 @@ def getCompaniesv2():
             exchanges.append(exchange)
         if bse_company != None:
             exchange = {}
-            exchange["code"] = bse_company["symbol"]
+            exchange["code"] = bse_company["bseCode"]
             exchange["name"] ="BSE"
             exchanges.append(exchange)
 
@@ -85,10 +85,6 @@ def getCompaniesv2():
 
 def getExchangeDatav2(exchangeData, isBse):
     print("----------------------------------")
-    # if isBse:
-    #     df = pd.DataFrame(bseData, columns=['Security Id','Security Name', 'Instrument'])
-    # else:
-    #     df = pd.DataFrame(bseData, columns=['Symbol','Company Name'])
     
     companies_map = {}
     companies_symbols_set = set()
@@ -100,7 +96,7 @@ def getExchangeDatav2(exchangeData, isBse):
             status = str(row['Status'])
             if instrument=="Equity" and status=='Active':
                 symbol = str(row['Security Id'])
-                bseCode = ''#str(row['Security Code'])
+                bseCode = str(row['Security Code'])
                 name = str(row['Issuer Name'])
                 isin = str(row['ISIN No'])
             else:
@@ -115,7 +111,7 @@ def getExchangeDatav2(exchangeData, isBse):
         company["name"] = name
         company["bseCode"] = bseCode
         company["isin"] = isin
-
+        print(company)
         companies_map[isin] = company
         companies_symbols_set.add(symbol)
         # print(name,symbol  )
@@ -125,3 +121,7 @@ def getExchangeDatav2(exchangeData, isBse):
 
 if __name__ == "__main__":
    getCompaniesv2()
+
+# https://tradebrains.in/find-complete-list-of-stocks-listed-indian-stock-market/
+# https://www.bseindia.com/corporates/List_Scrips.html
+# https://www.nseindia.com/market-data/securities-available-for-trading

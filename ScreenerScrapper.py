@@ -246,12 +246,10 @@ def requireScrapping(isin, force):
     result = companiesCollection.find_one(query)
     if result:
         return False
-           
     return True
 
 def startScrap(code, isin,exchange_name, force):
     key = code
-    
     scrappingRequired = requireScrapping(isin, force)
     if not scrappingRequired:
         print("Data Already Available:", code)
@@ -290,6 +288,9 @@ def startScrap(code, isin,exchange_name, force):
             print(error)
             print("FAILED: Exception:", ":retryCount:" ,retryCount)
             retry= False
+            raise WebPageNotAvailableException
+        if(retryCount>MAX_RETRY):
+            raise WebPageNotAvailableException
         
     if MAX_RETRY<retryCount:
         print("FAILED: Retry:", ticker," bsecode:",bseCode,  ":count")    
