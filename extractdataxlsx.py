@@ -1,53 +1,8 @@
 import pandas as pd
 import time
 
-# def getCompaniesv1():
-#     bse_csv_file_name = "./exchanges/v2/bse.csv"
-#     nse_csv_file_name = "./exchanges/v2/nse.csv"
-
-#     bse_usecols = ["Security Code", "Issuer Name", "Security Id", "Status", "Group", "Instrument", "ISIN No"]
-#     nse_usecols = ["SYMBOL", "NAME OF COMPANY", " ISIN NUMBER"]
-#     bseData =  pd.read_csv(bse_csv_file_name, usecols=bse_usecols,index_col=False)
-#     nseData = pd.read_csv(nse_csv_file_name, usecols=nse_usecols,index_col=False)
-    
-
-#     bseCompanies = getExchangeDatav1(bseData, True)
-#     nseCompanies = getExchangeDatav1(nseData,False)
-#     return bseCompanies, nseCompanies
-
-# def getExchangeDatav1(exchangeData, isBse):
-#     print("----------------------------------")
-#     # if isBse:
-#     #     df = pd.DataFrame(bseData, columns=['Security Id','Security Name', 'Instrument'])
-#     # else:
-#     #     df = pd.DataFrame(bseData, columns=['Symbol','Company Name'])
-    
-#     companies = []
-#     for index, row  in exchangeData.iterrows():
-#         company = {}
-#         if isBse == False:
-#             symbol = str(row['Symbol'])
-#             name = str(row['Company Name'])
-#             bseCode=''
-#         if isBse ==True:
-#             instrument = str(row['Instrument'])
-#             status = str(row['Status'])
-#             if instrument=="Equity" and status=='Active':
-#                 symbol = str(row['Security Id'])
-#                 bseCode = str(row['Security Code'])
-#                 name = str(row['Issuer Name'])
-#             else:
-#                 continue
-#         company["symbol"] = symbol
-#         company["name"] = name
-#         company["bseCode"] = bseCode
-
-#         companies.append(company)
-#         # print(name,symbol  )
-                                                                
-#     return companies
-
-def getCompaniesv2():
+   
+def getCompaniesListFromCsv():
     bse_csv_file_name = "./exchanges/v3/bse.csv"
     nse_csv_file_name = "./exchanges/v3/nse.csv"
 
@@ -120,8 +75,9 @@ def getExchangeDatav2(exchangeData, isBse):
 
 
 if __name__ == "__main__":
-   getCompaniesv2()
+   getCompaniesListFromCsv()
 
 # https://tradebrains.in/find-complete-list-of-stocks-listed-indian-stock-market/
 # https://www.bseindia.com/corporates/List_Scrips.html
 # https://www.nseindia.com/market-data/securities-available-for-trading
+# https://upstox.com/developer/api-documentation/instruments

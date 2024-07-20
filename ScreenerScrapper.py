@@ -245,14 +245,17 @@ def requireScrapping(isin, force):
     query = {"isin": isin}
     result = companiesCollection.find_one(query)
     if result:
-        return False
-    return True
+        if("marketCap" in result):
+          return False
+        else:
+          return True
+    return False
 
-def startScrap(code, isin,exchange_name, force):
-    key = code
+def startScrap(identifier, isin, force):
+    
     scrappingRequired = requireScrapping(isin, force)
     if not scrappingRequired:
-        print("Data Already Available:", code)
+        print("Data Already Available:", isin)
         retry = False
         return
     urlprefix ="https://www.screener.in/company/"
@@ -266,22 +269,22 @@ def startScrap(code, isin,exchange_name, force):
     
     while(retry and retryCount<=MAX_RETRY):
         try:
-            URL = urlprefix+key+ "/" + mode
+            URL = urlprefix+identifier+ "/" + mode
             mode_desc = mode
             if mode ==standalone:
                 mode_desc = 'standalone'
-            scrap(URL,key, isin, exchange_name, mode_desc)
-            print("Successfully processed:", code)
+            scrap(URL, isin, mode_desc)
+            print("Successfully processed:", isin)
             retry = False
         except (WebPageNotAvailableException, MarketCapDataNotAvailableException, LatestDataNotAvailable):
             if mode==standalone:
-                print("FAILED: WebPage not available:", key)
+                print("FAILED: WebPage not available:", isin)
                 raise WebPageNotAvailableException
             elif mode==consolidated : 
                 mode = standalone
-                print("Switching to standalone for", key)
+                print("Switching to standalone for", isin)
         except TooManyHttpRequestsException:
-            print("Too many Requests :Retrying:", key, ":retryCount:" ,retryCount)
+            print("Too many Requests :Retrying:", isin, ":retryCount:" ,retryCount)
             time.sleep(5)
             retryCount = retryCount +1
         except Exception as error:
@@ -293,9 +296,9 @@ def startScrap(code, isin,exchange_name, force):
             raise WebPageNotAvailableException
         
     if MAX_RETRY<retryCount:
-        print("FAILED: Retry:", ticker," bsecode:",bseCode,  ":count")    
+        print("FAILED: Retry:", isin,  ":count:", retryCount)    
 
-def scrap(URL, key, isin, exchange_name, mode):
+def scrap(URL,  isin, mode):
 
     headers = {
     "User-Agent": 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/113.0.0.0 Safari/537.36'}
@@ -357,10 +360,9 @@ def scrap(URL, key, isin, exchange_name, mode):
 
 
     alldata["_id"]=isin
-    alldata["isin"]=isin
     alldata["asOfDate"]=datetime.now().strftime('%Y-%m-%d')
     alldata["mode"]=mode
-    alldata["exchange"] = exchange_name
+    
     alldata = {**alldata, **website_bse_nse_codes, **sectorAndIndustry,**basic_info_dict}
     alldata["quarterlyResults"] = quarterly_results
     alldata["profitAndLoss"] = profit_loss_dict
@@ -372,7 +374,7 @@ def scrap(URL, key, isin, exchange_name, mode):
     insertIntoMongoDB(alldata, isin)
 
 
-    return PROCESSED + key + ":" + isin
+    return PROCESSED + isin + ":" + isin
 
 # def isWebpageAvailable(soup):
 #     pagenotFound = getClassData(soup, "card card-medium")
