@@ -51,30 +51,29 @@ def getUniqueDictionary(list_of_dicts, field):
 # https://testdriven.io/blog/flask-async/
 # https://www.youtube.com/watch?v=0z74b3c63GA
 
-def scrapCompanies(identifierMap, force):
+def scrapCompanies(identifierMap):
     failedList =[]
     now= datetime.now().strftime('%Y-%m-%d %H:%M:%S')
     for index, doc in enumerate(identifierMap):
      isin = doc["_id"]
      identifiers = doc["identifiers"]
-     print(isin, identifiers)
-     for index, identifier in enumerate(identifiers):
+     print("Count:",index, isin, identifiers)
+     for index1, identifier in enumerate(identifiers):
         print(identifier)
         try:
 
           print("start scrap:isin: " , isin, ":", identifier, )
-          msg = startScrap(identifier, isin, force)
+          msg = startScrap(identifier, isin)
           break
         except (WebPageNotAvailableException, MarketCapDataNotAvailableException, LatestDataNotAvailable):
           print("Fail to scrap:" , isin, " identifier:", identifier)
-          
           failedList.append(isin)
           with open('failed_'+now+'.txt', 'a') as file:
             file.write(isin+'\n')
     print("Failed List:")
     print(failedList)
 
-def bulkScrap():
+def bulkScrap(mode):
   print('-------------------bulkScrap-------------------------')
   length_to_split = [50]
   # isin_nse_bse_codes_map = getCompaniesListFromCsv()
@@ -86,7 +85,12 @@ def bulkScrap():
         "bseTradingSymbol": 1 
     }
 
-  query = {}
+  
+  if mode == "full-refresh":
+    query = {}
+  elif mode == "refresh-missing":
+    query =  {"marketCap": {"$exists": False}}
+  
   documents = read_selected_attributes(companiesCollection, query, projection)
   # Convert the values of each JSON document to retain the first field and combine the rest into a list
   converted_documents = convert_json_values_with_first_field(documents)
@@ -94,12 +98,10 @@ def bulkScrap():
   # for document in converted_documents:
   #    print(document)
   print("---------------------------") 
-  for index, doc in enumerate(converted_documents):
-     print(doc["_id"], doc["identifiers"])
-     for index, identifier in enumerate(doc["identifiers"]):
-         print(identifier)
 
-  scrapCompanies(converted_documents,False);#{'_id': 'INE187D01029', 'identifiers': ['505160', 'TALBROAUTO']}
+  print("Total Count:", len(converted_documents))
+
+  scrapCompanies(converted_documents);#{'_id': 'INE187D01029', 'identifiers': ['505160', 'TALBROAUTO']}
   print("Finished") 
 
 def read_selected_attributes(collection, query={}, projection=None):
@@ -141,4 +143,6 @@ def scrapCompany(isin):
 
 
 if __name__ == '__main__':
-  bulkScrap()
+  mode = "refresh-missing"; # full-refresh
+  # query = {}
+  bulkScrap(mode)

@@ -251,13 +251,13 @@ def requireScrapping(isin, force):
           return True
     return False
 
-def startScrap(identifier, isin, force):
+def startScrap(identifier, isin):
     
-    scrappingRequired = requireScrapping(isin, force)
-    if not scrappingRequired:
-        print("Data Already Available:", isin)
-        retry = False
-        return
+    # scrappingRequired = requireScrapping(isin, force)
+    # if not scrappingRequired:
+    #     print("Data Already Available:", isin)
+    #     retry = False
+    #     return
     urlprefix ="https://www.screener.in/company/"
     consolidated ='consolidated'
     standalone =""
@@ -267,8 +267,9 @@ def startScrap(identifier, isin, force):
     
     retry = True
     
-    while(retry and retryCount<=MAX_RETRY):
+    while retry and retryCount<=MAX_RETRY:
         try:
+            print("test")
             URL = urlprefix+identifier+ "/" + mode
             mode_desc = mode
             if mode ==standalone:
@@ -276,13 +277,16 @@ def startScrap(identifier, isin, force):
             scrap(URL, isin, mode_desc)
             print("Successfully processed:", isin)
             retry = False
+            retryCount = MAX_RETRY + 1
+            break
         except (WebPageNotAvailableException, MarketCapDataNotAvailableException, LatestDataNotAvailable):
             if mode==standalone:
                 print("FAILED: WebPage not available:", isin)
                 raise WebPageNotAvailableException
-            elif mode==consolidated : 
+            elif mode==consolidated: 
                 mode = standalone
-                print("Switching to standalone for", isin)
+                retryCount =1
+                print("Switching to standalone for: ", isin)
         except TooManyHttpRequestsException:
             print("Too many Requests :Retrying:", isin, ":retryCount:" ,retryCount)
             time.sleep(5)
@@ -291,7 +295,8 @@ def startScrap(identifier, isin, force):
             print(error)
             print("FAILED: Exception:", ":retryCount:" ,retryCount)
             retry= False
-            raise WebPageNotAvailableException
+            raise WebPageNotAvailableException  
+        
         if(retryCount>MAX_RETRY):
             raise WebPageNotAvailableException
         
